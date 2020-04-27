@@ -1,6 +1,21 @@
 import React from "react";
 import ReactDOM from "react-dom";
 
+const LASER_TRAIL = 3; // the length of the trail on the laser
+const LASER_ACCELERATION = 1.05;
+const LASER_SPEED = 2;
+const PARTICLE_TRAIL = 5; // the length of the trail on particles
+const PARTICLE_COUNT = 20; // the number of particles in the explosion
+const PARTICLE_GRAVITY = 2; // gravity will be applied and pull the particle down
+const PARTICLE_MAX_SPEED = 10;
+const PARTICLE_FRICTION = 0.95; // friction will slow the particle down
+const PARTICLE_DECAY_MIN = 0.015; // the range of of how fast a particle decays
+const PARTICLE_DECAY_MAX = 0.03;
+const CANVAS = {
+  width: 700,
+  height: 700,
+};
+
 type Particle = {
   x: number;
   y: number;
@@ -9,10 +24,6 @@ type Particle = {
   // set a random angle in all possible directions, in radians
   angle: number;
   speed: number;
-  // friction will slow the particle down
-  friction: number;
-  // gravity will be applied and pull the particle down
-  gravity: number;
   brightness: number;
   alpha: number;
   // set how fast the particle fades out
@@ -41,7 +52,6 @@ type Laser = {
   coordinates: [number, number][];
   angle: number;
   speed: number;
-  acceleration: number;
   brightness: number;
   // circle target indicator radius
   targetRadius: number;
@@ -50,13 +60,6 @@ type Laser = {
 type GameState = {
   lasers: Laser[];
   explosions: Explosion[];
-};
-
-const LASER_TRAIL = 3; // the length of the trail on the laser
-const PARTICLE_TRAIL = 5; // the length of the trail on particles
-const CANVAS = {
-  width: 500,
-  height: 500,
 };
 
 const calculateDistance = (
@@ -118,15 +121,11 @@ const createParticle = (x: number, y: number): Particle => ({
   coordinates: Array.from({ length: PARTICLE_TRAIL }, () => [x, y]),
   // set a random angle in all possible directions, in radians
   angle: random(0, Math.PI * 2),
-  speed: random(1, 10),
-  // friction will slow the particle down
-  friction: 0.95,
-  // gravity will be applied and pull the particle down
-  gravity: 0,
+  speed: random(1, PARTICLE_MAX_SPEED),
   brightness: random(50, 80),
   alpha: 1,
   // set how fast the particle fades out
-  decay: random(0.015, 0.03),
+  decay: random(PARTICLE_DECAY_MIN, PARTICLE_DECAY_MAX),
 });
 
 const updateParticle = (state: Particle): Particle | undefined => {
@@ -138,12 +137,12 @@ const updateParticle = (state: Particle): Particle | undefined => {
   coordinates.unshift([x, y]);
 
   // slow down the particle
-  const speed = state.speed * state.friction;
+  const speed = state.speed * PARTICLE_FRICTION;
 
   // fade out the particle
   const alpha = state.alpha - state.decay;
 
-  // remove the particle once the alpha is low enough, based on the passed in index
+  // remove the particle once the alpha is low enough
   return alpha <= state.decay
     ? undefined
     : {
@@ -153,7 +152,7 @@ const updateParticle = (state: Particle): Particle | undefined => {
         alpha,
         // apply velocity
         x: x + Math.cos(state.angle) * speed,
-        y: y + Math.sin(state.angle) * speed + state.gravity,
+        y: y + Math.sin(state.angle) * speed + PARTICLE_GRAVITY,
       };
 };
 
@@ -177,8 +176,7 @@ const createLaser = (
   // track the past coordinates of each firework to create a trail effect, increase the coordinate count to create more prominent trails
   coordinates: Array.from({ length: LASER_TRAIL }, () => [sx, sy]),
   angle: Math.atan2(ty - sy, tx - sx),
-  speed: 2,
-  acceleration: 1.05,
+  speed: LASER_SPEED,
   brightness: random(50, 70),
   // circle target indicator radius
   targetRadius: 1,
@@ -198,7 +196,7 @@ const updateLaser = (state: Laser): Laser => {
   const targetRadius = state.targetRadius < 8 ? state.targetRadius + 0.3 : 1;
 
   // accelerate the laser
-  const speed = state.speed * state.acceleration;
+  const speed = state.speed * LASER_ACCELERATION;
 
   // get the current velocities based on angle and speed
   const vx = Math.cos(state.angle) * speed;
@@ -226,7 +224,7 @@ const updateLaser = (state: Laser): Laser => {
 const createExplosion = (x: number, y: number): Explosion => ({
   x,
   y,
-  particles: Array.from({ length: 30 }, () => createParticle(x, y)),
+  particles: Array.from({ length: PARTICLE_COUNT }, () => createParticle(x, y)),
 });
 
 const updateExplosion = (state: Explosion): Explosion => ({
